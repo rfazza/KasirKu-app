@@ -144,7 +144,21 @@ function decCart(id){ if(cart[id]){ cart[id].qty-=1; if(cart[id].qty<=0) delete 
 function clearCart(){ cart = {}; save(LS_CART, cart); renderCart(); }
 
 // Checkout
-function checkout(){
+function checkout() {
+    const totalBayar = calculateTotal(); // asumsi ada fungsi ini
+    let uangDiterima = parseFloat(prompt("Masukkan uang diterima:", totalBayar)) || 0;
+    let kembalian = uangDiterima - totalBayar;
+    if (kembalian < 0) {
+        alert("Uang kurang! Transaksi dibatalkan.");
+        return;
+    }
+    alert("Transaksi berhasil!
+Total: Rp " + totalBayar.toLocaleString() +
+          "
+Uang Diterima: Rp " + uangDiterima.toLocaleString() +
+          "
+Kembalian: Rp " + kembalian.toLocaleString());
+
   const items = Object.values(cart)
   if(items.length===0){ alert('Keranjang kosong'); return }
   const total = items.reduce((s,i)=> s + (i.qty||0)*(i.price||0), 0)
@@ -347,3 +361,23 @@ document.addEventListener('DOMContentLoaded', ()=>{
   })
 
 })
+
+
+// Login dummy lokal
+function login() {
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
+    if (username === "admin" && password === "123") {
+        alert("Login berhasil! Selamat datang, " + username);
+        document.getElementById("login-section").style.display = "none";
+        document.getElementById("main-section").style.display = "block";
+    } else {
+        alert("Username atau password salah!");
+    }
+}
+
+
+// Sync Now simulasi
+function syncNow() {
+    alert("Data berhasil disinkronkan (simulasi)");
+}
