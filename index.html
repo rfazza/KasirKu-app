@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>POS — Local + Supabase Sync</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>POS Demo — Local + Supabase</h1>
+        <div class="meta" id="store-meta">Toko: Demo Store</div>
+      </div>
+      <div class="meta" id="user-meta">Mode: Offline</div>
+    </header>
+
+    <div class="top-controls">
+      <div class="pill" id="mode-pill">Offline</div>
+      <button class="btn small" id="btn-login">Login</button>
+      <button class="btn small secondary" id="btn-logout" style="display:none">Logout</button>
+      <button class="btn small" id="btn-sync">Sync Now</button>
+      <button class="btn small secondary" id="btn-export">Export</button>
+      <button class="btn small secondary" id="btn-import">Import</button>
+      <input type="file" id="f-import" accept="application/json" style="display:none">
+    </div>
+
+    <div class="grid">
+      <main>
+        <section class="card">
+          <div class="toolbar">
+            <strong>Produk</strong>
+            <div class="controls">
+              <input id="search" placeholder="Cari produk...">
+              <button class="btn small" id="add-sample">+ Sample</button>
+              <button class="btn small secondary" id="open-add">Tambah</button>
+            </div>
+          </div>
+          <div class="product-list" id="product-list"></div>
+        </section>
+
+        <section class="card" style="margin-top:12px">
+          <strong>Transaksi</strong>
+          <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+            <input type="date" id="filter-start">
+            <input type="date" id="filter-end">
+            <button class="btn small" id="filter-now">Filter</button>
+            <button class="btn small secondary" id="clear-filter">Clear</button>
+          </div>
+          <div class="txn-list" id="txn-list" style="margin-top:8px"></div>
+        </section>
+      </main>
+
+      <aside class="cart card">
+        <strong>Keranjang</strong>
+        <div class="cart-items" id="cart-items"></div>
+
+        <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div class="muted">Subtotal</div>
+            <div id="cart-subtotal">Rp 0</div>
+          </div>
+          <div style="text-align:right">
+            <div class="muted">Item</div>
+            <div id="cart-count">0</div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn" id="checkout">Bayar</button>
+          <button class="btn secondary" id="clear-cart">Kosongkan</button>
+        </div>
+
+        <hr style="margin:12px 0;border-color:rgba(255,255,255,0.03)">
+
+        <strong>Tambah / Edit Produk</strong>
+        <form id="product-form" style="margin-top:8px">
+          <input type="hidden" id="prod-id">
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input id="prod-name" placeholder="Nama produk" required>
+            <input id="prod-price" placeholder="Harga" required>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input id="prod-sku" placeholder="SKU (opsional)">
+            <input id="prod-stock" placeholder="Stok (opsional)">
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn" type="submit">Simpan</button>
+            <button class="btn secondary" id="cancel-edit" type="button">Batal</button>
+          </div>
+        </form>
+      </aside>
+    </div>
+
+    <footer>
+      <div>Built: Local-first. Sync via Supabase optional. Read README for Supabase steps.</div>
+    </footer>
+  </div>
+
+  <!-- Supabase JS (optional) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
