@@ -1,59 +1,453 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>POS Demo Lokal</title>
-  <link rel="stylesheet" href="style.css"/>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>POS Kasir - Single file (Offline + Thermal Struk)</title>
+<style>
+  /* ---------- BASIC THEME ---------- */
+  :root{--bg:#071428;--card:#0b1220;--muted:#9aa9bf;--accent:#06b6d4;--danger:#ef4444}
+  *{box-sizing:border-box}
+  body{font-family:Inter,system-ui,Arial,monospace;margin:0;background:linear-gradient(180deg,#071428 0%, #071827 100%);color:#e6eef6}
+  .wrap{max-width:1100px;margin:18px auto;padding:18px}
+  header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  h1{font-size:18px;margin:0}
+  .meta{color:var(--muted);font-size:13px}
+
+  /* grid */
+  .grid{display:grid;grid-template-columns:1fr 360px;gap:16px}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(2,6,23,0.6)}
+  
+  /* product */
+  .product-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+  .product{background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;display:flex;flex-direction:column}
+  .product .name{font-weight:700}
+  .product .price{color:var(--muted);font-size:13px}
+  .btn{background:var(--accent);border:none;padding:8px 10px;border-radius:8px;color:#012;cursor:pointer;font-weight:700}
+  .btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+  .small{padding:6px 8px;font-size:13px}
+
+  input, select, button{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px;border-radius:8px;color:inherit}
+  .muted{color:var(--muted)}
+
+  /* cart */
+  .cart-items{max-height:360px;overflow:auto;margin-top:8px}
+  .cart-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,0.03)}
+  .qty-controls{display:flex;gap:6px;align-items:center}
+
+  /* login */
+  #login-card{max-width:420px;margin:30px auto;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:18px;border-radius:10px}
+  #login-card input{width:100%;margin-bottom:8px}
+
+  /* responsive */
+  @media(max-width:900px){ .grid{grid-template-columns:1fr} }
+</style>
 </head>
 <body>
-
-  <!-- ===== Form Login ===== -->
-  <div id="login-page">
-    <h2>Login</h2>
-    <form id="login-form">
-      <input type="text" id="username" placeholder="Username" required/>
-      <input type="password" id="password" placeholder="Password" required/>
-      <button type="submit">Login</button>
-    </form>
-    <p style="color:gray;font-size:13px;">Gunakan user: <b>admin</b> | pass: <b>1234</b></p>
-  </div>
-
-  <!-- ===== Halaman POS ===== -->
-  <div id="pos-app" style="display:none;">
+  <div class="wrap">
     <header>
-      <h1>POS Demo — Lokal</h1>
+      <div>
+        <h1>POS Kasir — Demo Lokal</h1>
+        <div class="meta" id="store-meta">Toko: Demo Store</div>
+      </div>
+      <div class="meta" id="user-meta">Mode: Offline</div>
     </header>
 
-    <main>
-      <section id="product-section">
-        <h2>Produk</h2>
-        <div id="product-list"></div>
-      </section>
+    <!-- LOGIN -->
+    <div id="login-card">
+      <h2>Login Kasir</h2>
+      <div style="margin-bottom:10px;color:var(--muted)">Gunakan username <b>admin</b> dan password <b>1234</b></div>
+      <input id="username" placeholder="Username" />
+      <input id="password" placeholder="Password" type="password" />
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="btn-login" class="btn">Login</button>
+        <button id="btn-logout" class="btn secondary" style="display:none">Logout</button>
+        <button id="btn-test-struk" class="btn small secondary">Test Struk</button>
+      </div>
+    </div>
 
-      <aside id="cart-section">
-        <h2>Keranjang</h2>
-        <div id="cart-items"></div>
-        <p>Subtotal: <span id="cart-subtotal">Rp 0</span></p>
-        <p>Item: <span id="cart-count">0</span></p>
-
-        <div style="margin-top:10px;">
-          <label>Uang Diterima:</label>
-          <input type="number" id="uang-dibayar" placeholder="Masukkan jumlah..."/>
+    <!-- POS APP (hidden until login) -->
+    <div id="pos-app" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="pill" id="mode-pill" style="background:rgba(255,255,255,0.02);padding:6px 10px;border-radius:999px">Offline</div>
+          <button id="btn-sync" class="btn small">Sync Now</button>
         </div>
-        <div>
-          <label>Kembalian:</label>
-          <span id="cart-kembalian">Rp 0</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button id="btn-export" class="btn small secondary">Export</button>
+          <button id="btn-import" class="btn small secondary">Import</button>
+          <input id="f-import" type="file" accept="application/json" style="display:none" />
         </div>
+      </div>
 
-        <div style="margin-top:12px;">
-          <button id="checkout">Bayar</button>
-          <button id="clear-cart">Kosongkan</button>
-        </div>
-      </aside>
-    </main>
-  </div>
+      <div class="grid">
+        <main>
+          <section class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <strong>Produk</strong>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input id="search" placeholder="Cari produk..." style="min-width:200px" />
+                <button id="add-sample" class="btn small">+ Sample</button>
+                <button id="open-add" class="btn small secondary">Tambah</button>
+              </div>
+            </div>
 
-  <script src="app.js"></script>
+            <div class="product-list" id="product-list"></div>
+
+            <!-- add product form (simple) -->
+            <div id="add-form" style="margin-top:12px;display:none">
+              <div style="display:flex;gap:8px">
+                <input id="prod-name" placeholder="Nama produk" />
+                <input id="prod-price" placeholder="Harga" type="number" />
+              </div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <input id="prod-sku" placeholder="SKU (opsional)" />
+                <input id="prod-stock" placeholder="Stok (opsional)" type="number" />
+              </div>
+              <div style="margin-top:8px;display:flex;gap:8px">
+                <button id="save-prod" class="btn small">Simpan</button>
+                <button id="cancel-prod" class="btn small secondary">Batal</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="card" style="margin-top:12px">
+            <strong>Transaksi</strong>
+            <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+              <input type="date" id="filter-start" />
+              <input type="date" id="filter-end" />
+              <button id="filter-now" class="btn small">Filter</button>
+              <button id="clear-filter" class="btn small secondary">Clear</button>
+            </div>
+            <div class="txn-list card" id="txn-list" style="margin-top:8px;padding:8px;min-height:60px"></div>
+          </section>
+        </main>
+
+        <aside class="card">
+          <strong>Keranjang</strong>
+          <div class="cart-items" id="cart-items"></div>
+
+          <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div class="muted">Subtotal</div>
+              <div id="cart-subtotal">Rp 0</div>
+            </div>
+            <div style="text-align:right">
+              <div class="muted">Item</div>
+              <div id="cart-count">0</div>
+            </div>
+          </div>
+
+          <div style="margin-top:10px">
+            <label style="display:block;margin-bottom:6px">Uang Diterima</label>
+            <input id="uang-dibayar" type="number" placeholder="Masukkan jumlah (contoh: 50000)" />
+            <div style="margin-top:8px">Kembalian: <strong id="cart-kembalian">Rp 0</strong></div>
+          </div>
+
+          <div style="margin-top:12px;display:flex;gap:8px">
+            <button id="checkout" class="btn">Bayar</button>
+            <button id="clear-cart" class="btn secondary">Kosongkan</button>
+          </div>
+
+          <div style="margin-top:10px">
+            <button id="btn-export-local" class="btn small secondary">Export Data</button>
+            <button id="btn-import-local" class="btn small secondary">Import Data</button>
+          </div>
+        </aside>
+      </div>
+    </div><!-- pos-app -->
+  </div><!-- wrap -->
+
+<script>
+/*
+ Single-file POS logic (offline)
+ - login dummy admin/1234
+ - localStorage: products, cart, transactions
+ - calculate change (kembalian)
+ - print thermal-style receipt via Blob URL (no document.write)
+*/
+
+/* ---------- CONFIG ---------- */
+const LS_PRODUCTS = 'pos_products_v1'
+const LS_CART = 'pos_cart_v1'
+const LS_TXNS = 'pos_transactions_v1'
+const DUMMY_USER = { username: 'admin', password: '1234' }
+
+/* ---------- HELPERS ---------- */
+const money = n => 'Rp ' + Number(n||0).toLocaleString('id-ID')
+const uid = ()=> Date.now().toString(36) + Math.random().toString(36).slice(2,6)
+function load(key, fallback){ try{ const raw = localStorage.getItem(key); if(!raw) return fallback; return JSON.parse(raw) }catch(e){ return fallback } }
+function save(key, data){ try{ localStorage.setItem(key, JSON.stringify(data)) }catch(e){ console.error('save err', e) } }
+function escapeHtml(s){ return String(s||'').replace(/[&<>"'`]/g, ch=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[ch])) }
+
+/* ---------- STATE ---------- */
+let products = load(LS_PRODUCTS, [])
+let cart = load(LS_CART, {})
+let txns = load(LS_TXNS, [])
+
+/* ---------- SEED ---------- */
+function seedIfEmpty(){
+  if(!products || products.length===0){
+    products = [
+      {id:uid(), name:'Nasi Goreng', price:25000, sku:'NG-001', stock:20},
+      {id:uid(), name:'Es Teh', price:5000, sku:'ET-001', stock:50},
+      {id:uid(), name:'Kopi Hitam', price:12000, sku:'KH-001', stock:30}
+    ]
+    save(LS_PRODUCTS, products)
+  }
+}
+
+/* ---------- RENDERS ---------- */
+function renderProducts(q=''){
+  const list = document.getElementById('product-list'); if(!list) return; list.innerHTML=''
+  const term = (q||'').trim().toLowerCase()
+  const filtered = products.filter(p=> (p.name||'').toLowerCase().includes(term) || (p.sku||'').toLowerCase().includes(term))
+  if(filtered.length===0){ list.innerHTML = '<div class="muted">Tidak ada produk</div>'; return }
+  filtered.forEach(p=>{
+    const el = document.createElement('div'); el.className='product'
+    el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div><div class="name">${escapeHtml(p.name)}</div><div class="price">${money(p.price)}</div></div><div style="display:flex;flex-direction:column;gap:6px;"><button class="btn small" data-add="${p.id}">Tambah</button><button class="btn small secondary" data-edit="${p.id}">Edit</button></div></div>`
+    list.appendChild(el)
+  })
+}
+
+function renderCart(){
+  const el = document.getElementById('cart-items'); if(!el) return; el.innerHTML=''
+  const items = Object.values(cart || {})
+  if(items.length===0){ el.innerHTML = '<div class="muted">Keranjang kosong</div>' }
+  let subtotal = 0, count = 0
+  items.forEach(it=>{
+    subtotal += (it.qty||0)*(it.price||0)
+    count += (it.qty||0)
+    const row = document.createElement('div'); row.className='cart-item'
+    row.innerHTML = `<div><div style="font-weight:700">${escapeHtml(it.name)}</div><div class="muted">${money(it.price)} x ${it.qty} = ${money((it.price||0)*(it.qty||0))}</div></div>
+      <div class="qty-controls"><button class="btn small" data-dec="${it.id}">-</button><div style="width:26px;text-align:center">${it.qty}</div><button class="btn small" data-inc="${it.id}">+</button></div>`
+    el.appendChild(row)
+  })
+  document.getElementById('cart-subtotal').innerText = money(subtotal)
+  document.getElementById('cart-count').innerText = count
+  save(LS_CART, cart)
+  calcChange() // update kembalian otomatis
+}
+
+function renderTxns(){
+  const list = document.getElementById('txn-list'); if(!list) return; list.innerHTML=''
+  const reversed = (txns||[]).slice().reverse()
+  if(reversed.length===0){ list.innerHTML = '<div class="muted">Belum ada transaksi</div>'; return }
+  reversed.forEach(t=>{
+    const el = document.createElement('div'); el.style.padding='6px 0'; el.innerHTML = `<div style="display:flex;justify-content:space-between"><div><strong>${escapeHtml(t.id)}</strong><div class="muted">${new Date(t.date).toLocaleString()}</div></div><div>${money(t.total)}</div></div>`
+    list.appendChild(el)
+  })
+}
+
+/* ---------- CART ACTIONS ---------- */
+function addToCart(pid, qty=1){
+  const p = products.find(x=>x.id===pid); if(!p) return
+  if(cart[pid]) cart[pid].qty += qty
+  else cart[pid] = {...p, qty}
+  save(LS_CART, cart); renderCart()
+}
+function incCart(id){ if(cart[id]){ cart[id].qty +=1; save(LS_CART,cart); renderCart(); }}
+function decCart(id){ if(cart[id]){ cart[id].qty -=1; if(cart[id].qty<=0) delete cart[id]; save(LS_CART,cart); renderCart(); }}
+function clearCart(){ cart = {}; save(LS_CART, cart); renderCart() }
+
+/* ---------- CALCULATE TOTAL & CHANGE ---------- */
+function calcTotal(){
+  const items = Object.values(cart||{})
+  return items.reduce((s,i)=> s + (i.qty||0)*(i.price||0), 0)
+}
+function calcChange(){
+  const subtotal = calcTotal()
+  const paid = Number(document.getElementById('uang-dibayar')?.value) || 0
+  const change = paid - subtotal
+  document.getElementById('cart-kembalian').innerText = (change>=0) ? money(change) : 'Rp 0'
+  return {subtotal, paid, change}
+}
+
+/* ---------- CHECKOUT + PRINT (thermal 58mm style) ---------- */
+function checkoutFlow(){
+  const items = Object.values(cart||{})
+  if(items.length===0){ alert('Keranjang kosong'); return }
+  const {subtotal, paid, change} = calcChange()
+  if(paid < subtotal){ alert('Uang kurang!'); return }
+  // buat transaksi
+  const txn = { id: 'TXN-'+ new Date().toISOString().replace(/[:.]/g,''), date: new Date().toISOString(), items: items.map(i=>({id:i.id,name:i.name,price:i.price,qty:i.qty})), total: subtotal, paid, change }
+  txns.push(txn); save(LS_TXNS, txns)
+  // kosongkan cart
+  cart = {}; save(LS_CART, cart); renderCart(); renderTxns()
+  // print receipt (thermal)
+  printThermalReceipt(txn)
+}
+
+/* build thermal HTML and open via blob */
+function printThermalReceipt(txn){
+  const storeName = document.getElementById('store-meta')?.innerText || 'Demo Store'
+  const dateStr = new Date(txn.date).toLocaleString()
+  const itemsHtml = (txn.items||[]).map(it => `<tr><td style="padding:4px 0">${escapeHtml(it.name)} x ${it.qty}</td><td style="text-align:right">${money((it.price||0)*it.qty)}</td></tr>`).join('')
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Struk ${escapeHtml(txn.id)}</title>
+    <style>
+      body{font-family:monospace;font-size:12px;line-height:1.2;color:#000;padding:6px;width:200px}
+      .center{text-align:center}
+      table{width:100%}
+      hr{border:none;border-top:1px dashed #000;margin:6px 0}
+      .small{font-size:11px;color:#333}
+    </style>
+    </head><body>
+    <div class="center"><strong>${escapeHtml(storeName)}</strong></div>
+    <div class="center small">${dateStr}</div>
+    <hr>
+    <table>${itemsHtml}</table>
+    <hr>
+    <table>
+      <tr><td>Total</td><td style="text-align:right">${money(txn.total)}</td></tr>
+      <tr><td>Bayar</td><td style="text-align:right">${money(txn.paid)}</td></tr>
+      <tr><td>Kembali</td><td style="text-align:right">${money(txn.change)}</td></tr>
+    </table>
+    <hr>
+    <div class="center small">Terima kasih</div>
+    <div class="center small">-- Demo POS --</div>
+    <script>setTimeout(()=>{window.print();},300)</script>
+    </body></html>`
+  try{
+    const blob = new Blob([html], {type:'text/html'})
+    const url = URL.createObjectURL(blob)
+    const w = window.open(url, '_blank', 'noopener,noreferrer')
+    if(!w){
+      if(confirm('Popup terblokir. Buka struk di tab yang sama?')) location.href = url
+      else alert('Gagal membuka struk. Periksa popup blocker.')
+    }
+    setTimeout(()=> URL.revokeObjectURL(url), 15000)
+  }catch(e){
+    console.error('print err', e); alert('Gagal print: '+e.message)
+  }
+}
+
+/* ---------- TEST STRUK ---------- */
+function testThermal(){
+  const sample = { id:'TXN-TEST', date:new Date().toISOString(), items:[{id:'a',name:'Nasi Goreng',price:25000,qty:2},{id:'b',name:'Es Teh',price:5000,qty:1}], total:25000*2+5000, paid:60000, change:60000-(25000*2+5000) }
+  printThermalReceipt(sample)
+}
+
+/* ---------- IMPORT / EXPORT ---------- */
+function exportLocal(){
+  const payload = {products, txns}
+  try{
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'})
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = 'pos-data.json'; a.click(); URL.revokeObjectURL(url)
+  }catch(e){ alert('Export gagal: '+e.message) }
+}
+function importLocalFile(file){
+  const r = new FileReader(); r.onload = ()=>{
+    try{ const data = JSON.parse(r.result); if(Array.isArray(data.products)) products = data.products; if(Array.isArray(data.txns)) txns = data.txns; save(LS_PRODUCTS, products); save(LS_TXNS, txns); renderProducts(); renderTxns(); alert('Import sukses') }catch(e){ alert('Import error: '+e.message) }
+  }; r.readAsText(file)
+}
+
+/* ---------- SYNC (SIMULASI) ---------- */
+function syncNowSim(){
+  alert('Simulasi sync: data disinkronkan (lokal). Tidak ada server.')
+  document.getElementById('mode-pill').innerText = 'Synced (sim)'
+  setTimeout(()=> document.getElementById('mode-pill').innerText = 'Offline', 1500)
+}
+
+/* ---------- EVENT HOOKS ---------- */
+document.addEventListener('DOMContentLoaded', ()=>{
+  seedIfEmpty(); renderProducts(); renderCart(); renderTxns()
+
+  // login
+  const btnLogin = document.getElementById('btn-login')
+  const btnLogout = document.getElementById('btn-logout')
+  const loginCard = document.getElementById('login-card')
+  const posApp = document.getElementById('pos-app')
+  btnLogin?.addEventListener('click', ()=>{
+    const u = document.getElementById('username')?.value || ''
+    const p = document.getElementById('password')?.value || ''
+    if(u === DUMMY_USER.username && p === DUMMY_USER.password){
+      alert('Login sukses!')
+      loginCard.style.display = 'none'; posApp.style.display = 'block'
+      btnLogout.style.display = 'inline-block'
+      document.getElementById('user-meta').innerText = 'Login: ' + u
+    }else alert('Username / password salah')
+  })
+  btnLogout?.addEventListener('click', ()=>{
+    if(confirm('Logout?')){ loginCard.style.display = ''; posApp.style.display = 'none'; btnLogout.style.display = 'none'; document.getElementById('user-meta').innerText = 'Mode: Offline' }
+  })
+
+  // product actions
+  document.getElementById('product-list')?.addEventListener('click', (e)=>{
+    const add = e.target.closest('button[data-add]')?.dataset.add
+    const edit = e.target.closest('button[data-edit]')?.dataset.edit
+    if(add) addToCart(add)
+    if(edit){
+      const pid = edit; const p = products.find(x=>x.id===pid); if(!p) return
+      document.getElementById('prod-name').value = p.name; document.getElementById('prod-price').value = p.price; document.getElementById('prod-sku').value = p.sku||''; document.getElementById('prod-stock').value = p.stock||''; document.getElementById('add-form').style.display='block'
+      // on save we will replace existing product (simple approach)
+      document.getElementById('save-prod').onclick = ()=>{
+        p.name = document.getElementById('prod-name').value; p.price = Number(document.getElementById('prod-price').value) || p.price; p.sku = document.getElementById('prod-sku').value; p.stock = Number(document.getElementById('prod-stock').value) || p.stock; save(LS_PRODUCTS, products); renderProducts(); document.getElementById('add-form').style.display='none'
+      }
+    }
+  })
+
+  document.getElementById('add-sample')?.addEventListener('click', ()=>{
+    const p = {id:uid(), name:'Menu Baru '+Math.floor(Math.random()*90+10), price:Math.floor(Math.random()*30000)+2000, sku:'SMP-'+Math.floor(Math.random()*999), stock:10}
+    products.push(p); save(LS_PRODUCTS, products); renderProducts()
+  })
+  document.getElementById('open-add')?.addEventListener('click', ()=>{ document.getElementById('add-form').style.display='block'; document.getElementById('prod-name').value=''; document.getElementById('prod-price').value=''; document.getElementById('prod-sku').value=''; document.getElementById('prod-stock').value='' })
+  document.getElementById('save-prod')?.addEventListener('click', ()=>{
+    const id = uid(); const name = document.getElementById('prod-name').value.trim(); const price = Number(document.getElementById('prod-price').value) || 0
+    if(!name || !price){ alert('Nama & harga wajib'); return }
+    products.push({id,name,price,sku:document.getElementById('prod-sku').value,stock: Number(document.getElementById('prod-stock').value) || null}); save(LS_PRODUCTS, products); renderProducts(); document.getElementById('add-form').style.display='none'
+  })
+  document.getElementById('cancel-prod')?.addEventListener('click', ()=> document.getElementById('add-form').style.display='none')
+
+  // cart interactions (inc/dec)
+  document.getElementById('cart-items')?.addEventListener('click', (e)=>{
+    const inc = e.target.closest('button[data-inc]')?.dataset.inc
+    const dec = e.target.closest('button[data-dec]')?.dataset.dec
+    // older elements used data-inc / data-dec; here we used data-inc/data-dec on created elements
+    const add = e.target.closest('button[data-add]')?.dataset.add
+    if(add) addToCart(add)
+    if(inc) incCart(inc)
+    if(dec) decCart(dec)
+    // our dynamic inc/dec use attribute dataset-inc/dataset-dec; but creation used data-inc/data-dec
+  })
+
+  // direct inc/dec implemented by listening for data-inc/data-dec buttons created earlier
+  document.addEventListener('click', (e)=>{
+    const inc = e.target.getAttribute('data-inc')
+    const dec = e.target.getAttribute('data-dec')
+    if(inc){ incCart(inc) }
+    if(dec){ decCart(dec) }
+  })
+
+  // uang dibayar input -> calc change
+  document.getElementById('uang-dibayar')?.addEventListener('input', ()=> calcChange())
+
+  // checkout
+  document.getElementById('checkout')?.addEventListener('click', ()=> checkoutFlow())
+
+  // clear cart
+  document.getElementById('clear-cart')?.addEventListener('click', ()=> { if(confirm('Kosongkan keranjang?')) clearCart() })
+
+  // export / import
+  document.getElementById('btn-export')?.addEventListener('click', ()=> exportLocal())
+  document.getElementById('btn-export-local')?.addEventListener('click', ()=> exportLocal())
+  document.getElementById('btn-import')?.addEventListener('click', ()=> document.getElementById('f-import').click())
+  document.getElementById('f-import')?.addEventListener('change', e=> { const f = e.target.files[0]; if(f) importLocalFile(f) })
+  document.getElementById('btn-import-local')?.addEventListener('click', ()=> document.getElementById('f-import').click())
+
+  // test struk
+  document.getElementById('btn-test-struk')?.addEventListener('click', ()=> testThermal())
+
+  // sync now
+  document.getElementById('btn-sync')?.addEventListener('click', ()=> syncNowSim())
+
+  // search
+  document.getElementById('search')?.addEventListener('input', e=> renderProducts(e.target.value))
+
+  // initial attach inc/dec buttons after first render
+  renderProducts(); renderCart(); renderTxns()
+})
+
+</script>
 </body>
 </html>
